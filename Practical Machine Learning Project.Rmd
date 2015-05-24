@@ -1,0 +1,70 @@
+---
+title: "Practical Machine Learning"
+author: "Lc"
+date: "Sunday, May 24, 2015"
+output: html_document
+---
+
+Loading packages and data
+
+```{r}
+library(caret)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(dplyr)
+library(RColorBrewer)
+set.seed(1234)
+setwd("C:/Users/admin/Desktop/WD")
+train<-read.csv("train.csv",na.strings=c("","NA","NULL"))
+test<-read.csv("testing.csv",na.strings=c("","NA","NULL"))
+```
+
+Remove columns with amount of NA value
+```{r}
+nona<-train[,apply(train,2,function(x) ! any(is.na(x)))]
+```
+
+Remove columns with NZV value
+```{r}
+nzv<-nearZeroVar(nona)
+nonzv<-nona[,-nzv]
+```
+
+Remove irrelevant columns from dataset
+```{r}
+relevant<-nonzv[,7:dim(nonzv)[2]]
+```
+
+Remove low correlation variable
+```{r}
+cor<-cor(na.omit(relevant[sapply(relevant,is.numeric)]))
+corDescr<-findCorrelation(cor,cutoff=.90)
+relevant<-relevant[,-corDescr]
+```
+
+Make cross validation
+Use rpart model to build predictions
+```{r}
+inTrain<-createDataPartition(y=relevant$classe,p=0.7,list=FALSE)
+training<-relevant[inTrain,]
+testing<-relevant[-inTrain,]
+modFit<-train(classe~.,method="rpart",data=training)
+fancyRpartPlot(modFit$finalModel)
+predictions1<-predict(modFit,testing)
+confusionMatrix(predictions1,testing$classe)
+```
+
+Use randomForest packages to build predictions
+```{r}
+modrandom<-randomForest(classe~.,data=training,ntree=100,importance=TRUE)
+predictions2<-predict(modrandom,testing)
+confusionMatrix(predictions2,testing$classe)
+```
+
+According to result we choose to use randomforest for the predictions to test dataset
+```{r}
+final<-predict(modrandom,test)
+final
+```
